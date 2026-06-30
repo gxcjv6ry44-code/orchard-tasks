@@ -466,7 +466,6 @@ main { padding: 12px; }
   <div id="sched-content" style="display:none"></div>
 </main>
 
-<datalist id="sections-dl"></datalist>
 <datalist id="volunteers-dl"></datalist>
 
 <script>
@@ -482,6 +481,7 @@ let currentTeam     = 'Water';
 let currentSchedule = null;
 let entries         = [];
 let volunteers      = FALLBACK_VOLUNTEERS;
+let sections        = FALLBACK_SECTIONS;
 let debounce        = {};
 let realtimeChannel = null;
 let myName          = localStorage.getItem('orchardMyName') || '';
@@ -497,11 +497,8 @@ async function init() {
 async function loadSections() {
   try {
     const { data } = await client.from('orchard_sections').select('name').order('sort_order');
-    const list = (data && data.length) ? data.map(r => r.name) : FALLBACK_SECTIONS;
-    document.getElementById('sections-dl').innerHTML = list.map(s => `<option value="${esc(s)}">`).join('');
-  } catch(e) {
-    document.getElementById('sections-dl').innerHTML = FALLBACK_SECTIONS.map(s => `<option value="${esc(s)}">`).join('');
-  }
+    if (data && data.length) sections = data.map(r => r.name);
+  } catch(e) {}
 }
 
 async function loadVolunteers() {
@@ -625,10 +622,11 @@ function buildRow(entry) {
     <div class="ef-row">
       <div class="ef-grp">
         <span class="ef-lbl">Section</span>
-        <input class="section-inp" list="sections-dl" placeholder="e.g. 4A"
-          value="${esc(entry.section_label)}"
-          oninput="debounceSave('${entry.id}','section_label',this.value)"
+        <select class="section-inp"
           onchange="saveField('${entry.id}','section_label',this.value)">
+          <option value="">—</option>
+          ${sections.map(s => `<option value="${esc(s)}"${entry.section_label===s?' selected':''}>${esc(s)}</option>`).join('')}
+        </select>
       </div>
 
       <div class="ef-grp">
