@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Orchard Tasks</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f0f4f8;
+  color: #1a1a2e;
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+
+/* Force visible text in all inputs regardless of OS dark mode */
+input, select, textarea {
+  color: #1a1a2e !important;
+  -webkit-text-fill-color: #1a1a2e !important;
+  background-color: #f8fafc !important;
+}
+input::placeholder { color: #999 !important; -webkit-text-fill-color: #999 !important; }
+/* Header selects sit on a blue background — restore white text and transparent fill */
+header select {
+  background-color: transparent !important;
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+}
+
+/* ── Header ── */
+header {
+  background: #2E75B6;
+  color: white;
+  padding: 12px 14px 10px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.hdr-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.hdr-top h1 { font-size: 19px; font-weight: 700; flex: 1; }
+.team-sel {
+  background: rgba(255,255,255,0.2);
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  -webkit-appearance: none;
+}
+.team-sel option { color: #1a1a2e !important; background: white !important; }
+.hdr-week {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.week-sel {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255,255,255,0.15);
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+  -webkit-appearance: none;
+  min-width: 0;
+}
+.week-sel option { color: #1a1a2e !important; background: white !important; }
+.new-wk-btn {
+  background: rgba(255,255,255,0.22);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.new-wk-btn:active { background: rgba(255,255,255,0.35); }
+
+/* ── New-week panel ── */
+#nw-panel {
+  display: none;
+  background: #1a5a96;
+  padding: 10px 14px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#nw-panel.open { display: flex; }
+#nw-panel label { color: white; font-size: 13px; white-space: nowrap; }
+#nw-date {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  flex: 1;
+  min-width: 130px;
+}
+.nw-ok {
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nw-cancel {
+  background: rgba(255,255,255,0.18);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ── Status bar ── */
+#status-bar {
+  font-size: 12px;
+  text-align: center;
+  padding: 5px;
+  display: none;
+}
+
+/* ── Main ── */
+main { padding: 12px; }
+
+#loading {
+  text-align: center;
+  padding: 50px 20px;
+  color: #888;
+  font-size: 16px;
+}
+#empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+  display: none;
+}
+#empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+#empty-state p { font-size: 15px; line-height: 1.6; }
+
+/* ── Day section ── */
+.day-section { margin-bottom: 14px; }
+.day-hdr {
+  background: #2E75B6;
+  color: white;
+  padding: 9px 14px;
+  border-radius: 10px 10px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.day-entries {
+  background: white;
+  border: 1px solid #d0dce8;
+  border-top: none;
+}
+.day-foot {
+  border: 1px solid #d0dce8;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: #f8fafc;
+  padding: 7px 12px;
+}
+.add-row-btn {
+  background: none;
+  border: none;
+  color: #2E75B6;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.add-row-btn:active { opacity: 0.6; }
+
+/* ── Entry row ── */
+.entry-row {
+  padding: 8px 36px 8px 12px;
+  border-bottom: 1px solid #e8f0fb;
+  position: relative;
+  transition: background 0.2s;
+}
+.entry-row:last-child { border-bottom: none; }
+.entry-row.done-row { background: #f0faf4; }
+
+/* Fields sit side-by-side, each with its own label above */
+.ef-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* Each field group: label on top, input on bottom */
+.ef-grp {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ef-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: #7a96b0;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding-left: 2px;
+}
+/* Size each input to its content */
+.section-inp {
+  width: 130px;
+  padding: 7px 8px;
+  font-size: 14px;
+  border: 1.5px solid #d0dce8;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #1a1a2e;
+}
+.section-inp:focus { outline: none; border-color: #2E75B6; background: white; }
+/* Time picker: input + clock button side by side inside one border */
+.time-wrap {
+  display: flex;
+  align-items: stretch;
+  border: 1.5px solid #d0dce8;
+  border-radius: 8px;
+  background: white;
+  overflow: hidden;
+  width: 116px;
+}
+.time-wrap:focus-within { border-color: #2E75B6; }
+.time-inp {
+  width: 78px;
+  padding: 7px 6px;
+  font-size: 14px;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #1a1a2e !important;
+  -webkit-text-fill-color: #1a1a2e !important;
+  outline: none;
+}
+.time-pick-btn {
+  flex-shrink: 0;
+  background: #eef3fa;
+  border: none;
+  border-left: 1px solid #d0dce8;
+  padding: 0 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #2E75B6;
+  line-height: 1;
+}
+.time-pick-btn:active { background: #d0dce8; }
+
+/* Done: label above, checkbox below — same pattern as other fields */
+.done-grp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+.done-grp .ef-lbl { color: #27ae60; }
+.done-chk {
+  width: 28px;
+  height: 28px;
+  accent-color: #27ae60;
+  cursor: pointer;
+  margin-bottom: 1px;
+}
+
+/* Notes field — full-width second line inside ef-row */
+.notes-grp {
+  flex-basis: 100%;   /* force onto its own line within the flex row */
+  margin-top: 2px;
+}
+.notes-inp {
+  width: 100%;
+  max-width: 480px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1.5px solid #d0dce8;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #1a1a2e;
+}
+.notes-inp:focus { outline: none; border-color: #2E75B6; background: white; }
+
+/* Completed-by row (shown when Done is checked) */
+.cb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.completed-by-sel {
+  width: 160px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1.5px solid #27ae60;
+  border-radius: 8px;
+  background: #f0faf4;
+  color: #1a1a2e !important;
+  -webkit-text-fill-color: #1a1a2e !important;
+  -webkit-appearance: none;
+}
+.completed-at-txt {
+  font-size: 11px;
+  color: #888;
+  line-height: 1.3;
+}
+
+/* ── My Name header row ── */
+.hdr-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.hdr-me-lbl {
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+  white-space: nowrap;
+}
+.my-name-sel {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.18);
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+  -webkit-appearance: none;
+}
+.my-name-sel option { color: #1a1a2e !important; background: white !important; }
+
+/* ── Live indicator dot ── */
+.live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.25);
+  transition: background 0.4s;
+  title: 'Live updates';
+}
+.live-dot.on { background: #27ae60; }
+
+/* ── Assigned To + Me button ── */
+.assigned-wrap {
+  display: flex;
+  align-items: stretch;
+  border: 1.5px solid #d0dce8;
+  border-radius: 8px;
+  background: #f8fafc;
+  overflow: hidden;
+  width: 160px;
+}
+.assigned-wrap:focus-within { border-color: #2E75B6; }
+.assigned-inp {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 6px;
+  font-size: 14px;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #1a1a2e !important;
+  -webkit-text-fill-color: #1a1a2e !important;
+  outline: none;
+}
+.me-btn {
+  flex-shrink: 0;
+  background: #2E75B6;
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+  border: none;
+  border-left: 1px solid #d0dce8;
+  padding: 0 9px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.me-btn:active { background: #235d94; }
+
+/* Delete button */
+.del-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  color: #ccc;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.del-btn:hover { color: #e74c3c; background: #fdecea; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-top">
+    <h1>🌿 Orchard Tasks</h1>
+    <div class="live-dot" id="live-dot" title="Live updates"></div>
+    <select class="team-sel" id="team-sel" onchange="onTeamChange()">
+      <option value="Water">Water</option>
+      <option value="Fertilizing">Fertilizing</option>
+      <option value="Pruning">Pruning</option>
+    </select>
+  </div>
+  <div class="hdr-me">
+    <span class="hdr-me-lbl">👤 My Name:</span>
+    <select id="my-name-sel" class="my-name-sel" onchange="saveMyName(this.value)">
+      <option value="">— Who are you? —</option>
+    </select>
+  </div>
+  <div class="hdr-week">
+    <select id="week-sel" class="week-sel" onchange="onWeekChange()">
+      <option value="">— Select a week —</option>
+    </select>
+    <button class="new-wk-btn" onclick="toggleNewWeek()">+ New Week</button>
+  </div>
+</header>
+
+<div id="nw-panel">
+  <label>Monday date:</label>
+  <input type="date" id="nw-date">
+  <button class="nw-ok" onclick="createWeek()">Create</button>
+  <button class="nw-cancel" onclick="toggleNewWeek()">Cancel</button>
+</div>
+
+<div id="status-bar"></div>
+
+<main>
+  <div id="loading">Loading…</div>
+  <div id="empty-state">
+    <div class="icon">📋</div>
+    <p>No schedule yet.<br>Tap <strong>+ New Week</strong> to start one.</p>
+  </div>
+  <div id="sched-content" style="display:none"></div>
+</main>
+
+<datalist id="sections-dl"></datalist>
+<datalist id="volunteers-dl"></datalist>
+
+<script>
+const SUPABASE_URL  = 'https://tfkdkekvtuqepjqsgjoc.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_JRFxF6A8mDcZX2D05CdoCQ_F6_rDbwh';
+const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const FALLBACK_SECTIONS  = ['1','2','3','4A','4B','5','6','7A','8A','8B','WEST','Roads','Berm','Flowers'];
+const FALLBACK_VOLUNTEERS = ['Brent Eddy','David Bell','David Nielsen','Jeff Atkinson','Jody','Mike Loveless','Mirian'];
+
+let currentTeam     = 'Water';
+let currentSchedule = null;
+let entries         = [];
+let volunteers      = FALLBACK_VOLUNTEERS;
+let debounce        = {};
+let realtimeChannel = null;
+let myName          = localStorage.getItem('orchardMyName') || '';
+
+// ──────────────────────────────────────────────────────────────────
+// Init
+// ──────────────────────────────────────────────────────────────────
+async function init() {
+  await Promise.all([loadSections(), loadVolunteers()]);
+  await loadSchedules();
+}
+
+async function loadSections() {
+  try {
+    const { data } = await client.from('orchard_sections').select('name').order('sort_order');
+    const list = (data && data.length) ? data.map(r => r.name) : FALLBACK_SECTIONS;
+    document.getElementById('sections-dl').innerHTML = list.map(s => `<option value="${esc(s)}">`).join('');
+  } catch(e) {
+    document.getElementById('sections-dl').innerHTML = FALLBACK_SECTIONS.map(s => `<option value="${esc(s)}">`).join('');
+  }
+}
+
+async function loadVolunteers() {
+  try {
+    const { data } = await client.from('volunteers').select('full_name').eq('water_team', true).order('full_name');
+    if (data && data.length) volunteers = data.map(r => r.full_name);
+  } catch(e) {}
+  document.getElementById('volunteers-dl').innerHTML = volunteers.map(v => `<option value="${esc(v)}">`).join('');
+  // Populate "My Name" selector and restore saved choice
+  const sel = document.getElementById('my-name-sel');
+  sel.innerHTML = '<option value="">— Who are you? —</option>' +
+    volunteers.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if (myName) sel.value = myName;  // explicit assignment is required — selected attr in innerHTML is unreliable
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Schedules
+// ──────────────────────────────────────────────────────────────────
+async function loadSchedules() {
+  show('loading');
+  const { data } = await client
+    .from('task_schedules')
+    .select('*')
+    .eq('team_name', currentTeam)
+    .order('week_start', { ascending: false });
+
+  const sel = document.getElementById('week-sel');
+  sel.innerHTML = '<option value="">— Select a week —</option>';
+
+  if (data && data.length) {
+    data.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.id;
+      o.textContent = weekLabel(s.week_start);
+      sel.appendChild(o);
+    });
+    sel.value = data[0].id;
+    currentSchedule = data[0];
+    await loadEntries();
+  } else {
+    show('empty');
+  }
+}
+
+function weekLabel(weekStart) {
+  const d   = new Date(weekStart + 'T12:00:00');
+  const end = new Date(d);
+  end.setDate(d.getDate() + 5);
+  const fmt = { month: 'short', day: 'numeric' };
+  return d.toLocaleDateString('en-US', fmt) + ' – ' + end.toLocaleDateString('en-US', fmt);
+}
+
+async function onTeamChange() {
+  currentTeam = document.getElementById('team-sel').value;
+  currentSchedule = null;
+  entries = [];
+  await loadSchedules();
+}
+
+async function onWeekChange() {
+  const id = document.getElementById('week-sel').value;
+  if (!id) { show('empty'); return; }
+  show('loading');
+  const { data } = await client.from('task_schedules').select('*').eq('id', id).single();
+  currentSchedule = data;
+  await loadEntries();
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Entries
+// ──────────────────────────────────────────────────────────────────
+async function loadEntries() {
+  const { data } = await client
+    .from('task_entries')
+    .select('*')
+    .eq('schedule_id', currentSchedule.id)
+    .order('sort_order');
+  entries = data || [];
+  renderSchedule();
+  show('sched');
+  subscribeToSchedule(currentSchedule.id);
+}
+
+function renderSchedule() {
+  const wrap = document.getElementById('sched-content');
+  wrap.innerHTML = '';
+  DAYS.forEach(day => {
+    const dayRows = entries.filter(e => e.day_of_week === day);
+    const sec = document.createElement('div');
+    sec.className = 'day-section';
+    sec.innerHTML = `<div class="day-hdr">${day}</div>`;
+
+    const entriesDiv = document.createElement('div');
+    entriesDiv.className = 'day-entries';
+    entriesDiv.id = 'de-' + day;
+    dayRows.forEach(e => entriesDiv.appendChild(buildRow(e)));
+    sec.appendChild(entriesDiv);
+
+    const foot = document.createElement('div');
+    foot.className = 'day-foot';
+    foot.innerHTML = `<button class="add-row-btn" onclick="addEntry('${day}')">+ Add Row</button>`;
+    sec.appendChild(foot);
+    wrap.appendChild(sec);
+  });
+}
+
+function buildRow(entry) {
+  const div = document.createElement('div');
+  div.className = 'entry-row' + (entry.completed ? ' done-row' : '');
+  div.id = 'er-' + entry.id;
+
+  const t0 = entry.start_time ? entry.start_time.substring(0,5) : '';
+  const t1 = entry.end_time   ? entry.end_time.substring(0,5)   : '';
+  const catText = entry.completed_at
+    ? new Date(entry.completed_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })
+    : '';
+
+  div.innerHTML = `
+    <button class="del-btn" onclick="deleteEntry('${entry.id}')" title="Remove">✕</button>
+
+    <div class="ef-row">
+      <div class="ef-grp">
+        <span class="ef-lbl">Section</span>
+        <input class="section-inp" list="sections-dl" placeholder="e.g. 4A"
+          value="${esc(entry.section_label)}"
+          oninput="debounceSave('${entry.id}','section_label',this.value)"
+          onchange="saveField('${entry.id}','section_label',this.value)">
+      </div>
+
+      <div class="ef-grp">
+        <span class="ef-lbl">Start</span>
+        <div class="time-wrap">
+          <input type="time" class="time-inp" id="ts-${entry.id}" value="${t0}"
+            onchange="saveField('${entry.id}','start_time', this.value || null)">
+          <button class="time-pick-btn" type="button" title="Pick time"
+            onclick="document.getElementById('ts-${entry.id}').showPicker()">🕐</button>
+        </div>
+      </div>
+
+      <div class="ef-grp">
+        <span class="ef-lbl">End</span>
+        <div class="time-wrap">
+          <input type="time" class="time-inp" id="te-${entry.id}" value="${t1}"
+            onchange="saveField('${entry.id}','end_time', this.value || null)">
+          <button class="time-pick-btn" type="button" title="Pick time"
+            onclick="document.getElementById('te-${entry.id}').showPicker()">🕐</button>
+        </div>
+      </div>
+
+      <div class="ef-grp">
+        <span class="ef-lbl">Assigned To</span>
+        <div class="assigned-wrap">
+          <input class="assigned-inp" list="volunteers-dl" placeholder="Name"
+            value="${esc(entry.assigned_to)}"
+            oninput="debounceSave('${entry.id}','assigned_to',this.value)"
+            onchange="saveField('${entry.id}','assigned_to',this.value)">
+          <button class="me-btn" type="button" onclick="claimRow('${entry.id}')">Me</button>
+        </div>
+      </div>
+
+      <label class="done-grp">
+        <span class="ef-lbl">Done</span>
+        <input type="checkbox" class="done-chk" ${entry.completed ? 'checked' : ''}
+          onchange="toggleDone('${entry.id}', this.checked)">
+      </label>
+
+      <div class="ef-grp notes-grp">
+        <span class="ef-lbl">Notes</span>
+        <input class="notes-inp" type="text" placeholder="Optional comment…"
+          value="${esc(entry.notes || '')}"
+          oninput="debounceSave('${entry.id}','notes',this.value)"
+          onchange="saveField('${entry.id}','notes',this.value)">
+      </div>
+    </div>
+
+    <div class="cb-row" id="el3-${entry.id}" style="${entry.completed ? '' : 'display:none'}">
+      <div class="ef-grp">
+        <span class="ef-lbl" style="color:#27ae60">Completed By</span>
+        <select class="completed-by-sel"
+          onchange="saveField('${entry.id}','completed_by',this.value)">
+          <option value="">— select name —</option>
+          ${volunteers.map(v => `<option value="${esc(v)}"${entry.completed_by===v?' selected':''}>${esc(v)}</option>`).join('')}
+        </select>
+      </div>
+      <span class="completed-at-txt" id="cat-${entry.id}">${catText}</span>
+    </div>
+  `;
+  return div;
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Add / Delete
+// ──────────────────────────────────────────────────────────────────
+async function addEntry(day) {
+  if (!currentSchedule) { showStatus('No schedule selected', true); return; }
+  const dayRows = entries.filter(e => e.day_of_week === day);
+  const maxSort = dayRows.length ? Math.max(...dayRows.map(e => e.sort_order)) : 0;
+
+  // Insert the new row
+  const { error: insErr } = await client
+    .from('task_entries')
+    .insert({ schedule_id: currentSchedule.id, day_of_week: day, sort_order: maxSort + 1, section_label: '', assigned_to: '', completed: false });
+  if (insErr) { showStatus('Error adding row: ' + insErr.message, true); return; }
+
+  // Re-fetch all entries for this schedule and re-render
+  const { data: fresh, error: selErr } = await client
+    .from('task_entries')
+    .select('*')
+    .eq('schedule_id', currentSchedule.id)
+    .order('sort_order');
+  if (selErr) { showStatus('Row added but could not reload: ' + selErr.message, true); return; }
+  entries = fresh || [];
+  renderSchedule();
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Remove this row?')) return;
+  const { error } = await client.from('task_entries').delete().eq('id', id);
+  if (error) { showStatus('Error: ' + error.message, true); return; }
+  entries = entries.filter(e => e.id !== id);
+  document.getElementById('er-' + id)?.remove();
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Save
+// ──────────────────────────────────────────────────────────────────
+function debounceSave(id, field, value) {
+  const key = id + '.' + field;
+  clearTimeout(debounce[key]);
+  debounce[key] = setTimeout(() => saveField(id, field, value), 700);
+}
+
+async function saveField(id, field, value) {
+  const { error } = await client.from('task_entries').update({ [field]: value }).eq('id', id);
+  if (error) { showStatus('Save error', true); return; }
+  const entry = entries.find(e => e.id === id);
+  if (entry) entry[field] = value;
+  showStatus('Saved ✓');
+}
+
+async function toggleDone(id, checked) {
+  const upd = checked
+    ? { completed: true,  completed_at: new Date().toISOString() }
+    : { completed: false, completed_at: null, completed_by: null };
+
+  const { error } = await client.from('task_entries').update(upd).eq('id', id);
+  if (error) { showStatus('Error: ' + error.message, true); return; }
+
+  const entry = entries.find(e => e.id === id);
+  if (entry) Object.assign(entry, upd);
+
+  // Update UI without full re-render
+  const row = document.getElementById('er-' + id);
+  const line3 = document.getElementById('el3-' + id);
+  const tick  = document.getElementById('dt-' + id);
+  const cat   = document.getElementById('cat-' + id);
+  if (row)   row.classList.toggle('done-row', checked);
+  if (line3) line3.style.display = checked ? '' : 'none';
+  if (tick)  tick.textContent = checked ? '✓' : '';
+  if (cat && checked) {
+    cat.textContent = new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+  }
+  showStatus('Saved ✓');
+}
+
+// ──────────────────────────────────────────────────────────────────
+// New Week
+// ──────────────────────────────────────────────────────────────────
+function toggleNewWeek() {
+  const panel = document.getElementById('nw-panel');
+  const open  = panel.classList.toggle('open');
+  if (open) {
+    const inp = document.getElementById('nw-date');
+    inp.value = nextMonday();
+    inp.focus();
+  }
+}
+
+function nextMonday() {
+  const today = new Date();
+  const day   = today.getDay();
+  const diff  = day === 1 ? 0 : (8 - day) % 7;
+  const mon   = new Date(today);
+  mon.setDate(today.getDate() + diff);
+  // Use local date, not UTC (toISOString shifts to UTC and can give wrong day)
+  const y = mon.getFullYear();
+  const m = String(mon.getMonth() + 1).padStart(2, '0');
+  const d = String(mon.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+async function createWeek() {
+  const val = document.getElementById('nw-date').value;
+  if (!val) { alert('Pick a date.'); return; }
+  const d = new Date(val + 'T12:00:00');
+  if (d.getDay() !== 1) { alert('Please select a Monday.'); return; }
+
+  const { data, error } = await client
+    .from('task_schedules')
+    .insert({ team_name: currentTeam, week_start: val })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') alert('A schedule for that week already exists.');
+    else alert('Error: ' + error.message);
+    return;
+  }
+
+  const sel = document.getElementById('week-sel');
+  const o   = document.createElement('option');
+  o.value       = data.id;
+  o.textContent = weekLabel(data.week_start);
+  sel.insertBefore(o, sel.options[1]);
+  sel.value = data.id;
+
+  currentSchedule = data;
+  entries = [];
+  document.getElementById('nw-panel').classList.remove('open');
+  renderSchedule();
+  show('sched');
+}
+
+// ──────────────────────────────────────────────────────────────────
+// My Name
+// ──────────────────────────────────────────────────────────────────
+function saveMyName(name) {
+  myName = name;
+  if (name) localStorage.setItem('orchardMyName', name);
+  else localStorage.removeItem('orchardMyName');
+}
+
+function claimRow(id) {
+  if (!myName) {
+    alert('Set your name at the top first (My Name).');
+    return;
+  }
+  const row = document.getElementById('er-' + id);
+  if (row) {
+    const inp = row.querySelector('.assigned-inp');
+    if (inp) inp.value = myName;
+  }
+  saveField(id, 'assigned_to', myName);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Realtime
+// ──────────────────────────────────────────────────────────────────
+function subscribeToSchedule(scheduleId) {
+  // Drop previous subscription
+  if (realtimeChannel) {
+    client.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+  setLive(false);
+
+  realtimeChannel = client
+    .channel('task-entries-' + scheduleId)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'task_entries',
+      filter: `schedule_id=eq.${scheduleId}`
+    }, handleRealtimeChange)
+    .subscribe(status => setLive(status === 'SUBSCRIBED'));
+}
+
+function setLive(on) {
+  document.getElementById('live-dot')?.classList.toggle('on', on);
+}
+
+async function handleRealtimeChange(payload) {
+  const { eventType, new: newRow, old: oldRow } = payload;
+
+  if (eventType === 'INSERT') {
+    // If this row is new to us, reload to get correct ordering
+    if (!entries.find(e => e.id === newRow.id)) {
+      const { data } = await client
+        .from('task_entries').select('*')
+        .eq('schedule_id', currentSchedule.id).order('sort_order');
+      entries = data || [];
+      renderSchedule();
+    }
+  } else if (eventType === 'UPDATE') {
+    const idx = entries.findIndex(e => e.id === newRow.id);
+    if (idx !== -1) {
+      entries[idx] = newRow;
+      // Only re-render if user isn't actively editing this row
+      const rowEl = document.getElementById('er-' + newRow.id);
+      if (rowEl && !rowEl.contains(document.activeElement)) {
+        rowEl.replaceWith(buildRow(newRow));
+      }
+    }
+  } else if (eventType === 'DELETE') {
+    const deletedId = oldRow?.id;
+    entries = entries.filter(e => e.id !== deletedId);
+    document.getElementById('er-' + deletedId)?.remove();
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// UI helpers
+// ──────────────────────────────────────────────────────────────────
+function show(which) {
+  document.getElementById('loading').style.display      = which === 'loading' ? 'block' : 'none';
+  document.getElementById('empty-state').style.display  = which === 'empty'   ? 'block' : 'none';
+  document.getElementById('sched-content').style.display = which === 'sched'  ? 'block' : 'none';
+}
+
+let statusTimer;
+function showStatus(msg, isError = false) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.display   = 'block';
+  bar.style.background = isError ? '#fdecea' : '#e8f0fb';
+  bar.style.color      = isError ? '#c0392b' : '#2E75B6';
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => bar.style.display = 'none', 2500);
+}
+
+function esc(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Start
+// ──────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
